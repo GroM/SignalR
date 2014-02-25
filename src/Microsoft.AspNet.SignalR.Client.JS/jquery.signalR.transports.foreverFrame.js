@@ -43,7 +43,7 @@
                         attachedTo++;
                     }
                 },
-                cancel: function () {                   
+                cancel: function () {
                     // Only clear the interval if there's only one more object that the loadPreventer is attachedTo
                     if (attachedTo === 1) {
                         window.clearInterval(loadingFixIntervalId);
@@ -70,8 +70,10 @@
                 url,
                 frame = createFrame(),
                 frameLoadHandler = function () {
-                    connection.log("Forever frame iframe finished loading and is no longer receiving messages, reconnecting.");
-                    that.reconnect(connection);
+                    if (transportLogic.isConnectedOrReconnecting(connection)) {
+                        connection.log("Forever frame iframe finished loading and is no longer receiving messages, reconnecting.");
+                        that.reconnect(connection);
+                    }
                 };
 
             if (window.EventSource) {
@@ -121,8 +123,8 @@
         reconnect: function (connection) {
             var that = this;
 
-            // Need to verify before the setTimeout occurs because an application sleep could occur during the setTimeout duration.
-            if (!transportLogic.verifyLastActive(connection)) {
+            // Need to verify connection state and verify before the setTimeout occurs because an application sleep could occur during the setTimeout duration.
+            if (!transportLogic.isConnectedOrReconnecting(connection) || !transportLogic.verifyLastActive(connection)) {
                 return;
             }
 

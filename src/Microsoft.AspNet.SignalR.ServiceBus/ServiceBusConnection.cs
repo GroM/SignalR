@@ -27,6 +27,8 @@ namespace Microsoft.AspNet.SignalR.ServiceBus
         private readonly string _connectionString;
         private readonly TraceSource _trace;
 
+        private bool[] boolCreateTopic;
+
         public ServiceBusConnection(ServiceBusScaleoutConfiguration configuration, TraceSource traceSource)
         {
             _trace = traceSource;
@@ -74,6 +76,8 @@ namespace Microsoft.AspNet.SignalR.ServiceBus
             _trace.TraceInformation("Subscribing to {0} topic(s) in the service bus...", topicNames.Count);
 
             var connectionContext = new ServiceBusConnectionContext(_configuration, _namespaceManager, topicNames, _trace, handler, errorHandler, openStream);
+
+            boolCreateTopic = new bool[topicNames.Count];
 
             for (var topicIndex = 0; topicIndex < topicNames.Count; ++topicIndex)
             {
@@ -132,6 +136,17 @@ namespace Microsoft.AspNet.SignalR.ServiceBus
             }
 
             CreateSubscription(connectionContext, topicIndex);
+
+            if (boolCreateTopic[topicIndex] == false)
+            {
+                boolCreateTopic[topicIndex] = true;
+            }
+
+            if (boolCreateTopic[boolCreateTopic.Length - 1] == true)
+            {
+                // all Topic created, so don't wait  
+                ServiceBusMessageBus.WaitInitialize = false;
+            }
         }
 
         private void CreateSubscription(ServiceBusConnectionContext connectionContext, int topicIndex)
@@ -196,11 +211,13 @@ namespace Microsoft.AspNet.SignalR.ServiceBus
                 catch (UnauthorizedAccessException ex)
                 {
                     _trace.TraceError(errorMessage, ex.Message);
+                    ServiceBusMessageBus.WaitInitialize = false;
                     break;
                 }
                 catch (MessagingException ex)
                 {
                     _trace.TraceError(errorMessage, ex.Message);
+                    ServiceBusMessageBus.WaitInitialize = false;
                     if (ex.IsTransient)
                     {
                         Thread.Sleep(RetryDelay);
@@ -213,6 +230,7 @@ namespace Microsoft.AspNet.SignalR.ServiceBus
                 catch (Exception ex)
                 {
                     _trace.TraceError(errorMessage, ex.Message);
+                    ServiceBusMessageBus.WaitInitialize = false;
                     Thread.Sleep(RetryDelay);
                 }
             }
